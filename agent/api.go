@@ -51,7 +51,9 @@ func (a *Agent) GetClearedCalls(fromDate time.Time, toDate time.Time, ori string
 	if err != nil {
 		return out, err
 	}
-	log.Printf("DEBUG: %s", string(body))
+	if a.Debug {
+		log.Printf("DEBUG: %s", string(body))
+	}
 	err = json.Unmarshal(body, &out)
 	return out, err
 }
