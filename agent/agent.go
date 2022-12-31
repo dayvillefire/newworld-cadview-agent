@@ -31,6 +31,7 @@ type Agent struct {
 	auth    OidcObj
 
 	initialized bool
+	cancelled   bool
 	wg          sync.WaitGroup
 	l           sync.Mutex
 }
@@ -179,6 +180,23 @@ func (a *Agent) Init() error {
 	a.initialized = true
 
 	return nil
+}
+
+func (a *Agent) Run() {
+	go func() {
+		for {
+			err := a.Ping()
+			if err != nil {
+				log.Printf("Run(): %s", err.Error())
+			}
+			for i := 0; i < 15; i++ {
+				time.Sleep(time.Second)
+				if a.cancelled {
+					return
+				}
+			}
+		}
+	}()
 }
 
 func (a *Agent) ActiveCalls() ([]CallObj, error) {

@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+func (a *Agent) Ping() error {
+	// https://cadview.qvec.org/NewWorld.CadView/api/CadView/Ping
+
+	var out bool
+	url := a.LoginUrl + "/api/CadView/Ping"
+	body, err := a.authorizedGet(url)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(body, &out)
+	return err
+}
+
 func (a *Agent) GetORIs() ([]ORIObj, error) {
 	// https://cadview.qvec.org/NewWorld.CadView/api/CadView/GetOrisForClearedCallSearch
 
