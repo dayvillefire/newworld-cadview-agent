@@ -14,6 +14,7 @@ import (
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/domstorage"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
 
@@ -50,10 +51,24 @@ func (a *Agent) Init() error {
 
 	var _ctx context.Context
 	var _cancel context.CancelFunc
+
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.UserDataDir(""),
+		chromedp.Flag("enable-privacy-sandbox-ads-apis", true),
+	)
+
+	_ctx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
 	if a.Debug {
-		_ctx, _cancel = chromedp.NewContext(context.Background(), chromedp.WithDebugf(log.Printf))
+		_ctx, _cancel = chromedp.NewContext(
+			_ctx,
+			chromedp.WithDebugf(log.Printf),
+		)
 	} else {
-		_ctx, _cancel = chromedp.NewContext(context.Background())
+		_ctx, _cancel = chromedp.NewContext(
+			_ctx,
+		)
 	}
 	defer _cancel()
 
@@ -62,7 +77,7 @@ func (a *Agent) Init() error {
 
 	// ensure that the browser process is started
 	if err := chromedp.Run(ctx); err != nil {
-		log.Printf("ERR: %s", err.Error())
+		log.Printf("ERR: Run(): %s", err.Error())
 		return err
 	}
 
@@ -70,6 +85,7 @@ func (a *Agent) Init() error {
 	chromedp.ListenTarget(ctx, func(v interface{}) {
 		switch ev := v.(type) {
 		case *network.EventRequestWillBeSent:
+			//log.Printf("network.EventRequestWillBeSent")
 			if unwantedTraffic(ev.Request.URL) {
 				break
 			}
@@ -80,16 +96,20 @@ func (a *Agent) Init() error {
 			a.reqMap[ev.Request.URL] = ev.RequestID
 			a.l.Unlock()
 		case *network.EventResponseReceived:
+			//log.Printf("network.EventResponseReceived")
 			if unwantedTraffic(ev.Response.URL) {
 				break
 			}
+
 			if a.Debug {
 				log.Printf("EventResponseReceived: %v: %v", ev.RequestID, ev.Response.URL)
+				log.Printf("EventResponseReceived: status = %d, headers = %#v", ev.Response.Status, ev.Response.Headers)
 			}
 			a.l.Lock()
 			a.urlMap[ev.RequestID.String()] = ev.Response.URL
 			a.l.Unlock()
 		case *network.EventLoadingFinished:
+			//log.Printf("network.EventLoadingFinished")
 			if a.Debug {
 				log.Printf("EventLoadingFinished: %v", ev.RequestID)
 			}
@@ -123,10 +143,28 @@ func (a *Agent) Init() error {
 		chromedp.Navigate(a.LoginUrl),
 		chromedp.Tasks{
 			// Login sequence
+			//a.waitForLoadEvent(ctx),
+
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				log.Printf("INFO: Attempting to load page")
+				return nil
+			}),
+
 			chromedp.WaitVisible("//input[@id='Username']"),
 			chromedp.SendKeys("//input[@id='Username']", a.Username),
 			chromedp.SendKeys("//input[@id='passwordField']", a.Password),
+
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				log.Printf("INFO: Attempting to submit form")
+				return nil
+			}),
+
 			chromedp.Submit("//button[@id='loginbtn']"),
+
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				log.Printf("INFO: Attempting to wait for dashboard to be visible")
+				return nil
+			}),
 
 			// Don't continue until the dashboard is visible
 			chromedp.WaitVisible(`//*[contains(., 'Dashboard')]`),
@@ -137,12 +175,14 @@ func (a *Agent) Init() error {
 				// it's possible that the js code to add cache entries is executed after this action,
 				// and this action gets nothing.
 				// in this case, it's better to listen to the DOMStorage events.
+				log.Printf("INFO: Security Origin = %s", "https://"+strings.Split(a.LoginUrl, "/")[2])
 				entries, err := domstorage.GetDOMStorageItems(&domstorage.StorageID{
-					SecurityOrigin: "https://" + strings.Split(a.LoginUrl, "/")[2],
+					StorageKey:     domstorage.SerializedStorageKey("https://" + strings.Split(a.LoginUrl, "/")[2] + "/"),
 					IsLocalStorage: true,
 				}).Do(ctx)
 
 				if err != nil {
+					log.Printf("ERR: domstorage: %s", err.Error())
 					return err
 				}
 
@@ -303,4 +343,25 @@ func (a *Agent) SetAuth(auth OidcObj) {
 
 func (a *Agent) GetAuth() OidcObj {
 	return a.auth
+}
+
+func (a *Agent) waitForLoadEvent(ctx context.Context) chromedp.Action {
+	ch := make(chan struct{})
+
+	lctx, cancel := context.WithCancel(ctx)
+	go chromedp.ListenTarget(lctx, func(ev interface{}) {
+		if _, ok := ev.(*page.EventLoadEventFired); ok {
+			cancel()
+			close(ch)
+		}
+	})
+
+	return chromedp.ActionFunc(func(ctx context.Context) error {
+		select {
+		case <-ch:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	})
 }
