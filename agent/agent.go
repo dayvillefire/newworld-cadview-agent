@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -16,6 +17,10 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
+)
+
+var (
+	ErrNotAuthorized = errors.New("not authorized")
 )
 
 type Agent struct {
@@ -191,6 +196,11 @@ func (a *Agent) Init() error {
 					if strings.HasPrefix(entry[0], "oidc.user:") {
 						err = json.Unmarshal([]byte(entry[1]), &(a.auth))
 						//log.Printf("JSON user obj : %s", entry[1])
+						if err != nil {
+							log.Printf("ERR: Deserializing OIDC token: %s", err.Error())
+						} else {
+							log.Printf("INFO: oidc.expiresat = %d, oidc.auth_time = %d", a.auth.ExpiresAt, a.auth.Profile.AuthTime)
+						}
 					}
 				}
 
@@ -334,6 +344,14 @@ func (a *Agent) authorizedGet(url string) ([]byte, error) {
 		defer res.Body.Close()
 	}
 	defer res.Body.Close()
+
+	// Check for not being authorized
+	if err == nil {
+		if len(body) < 1 || body[0] == '<' {
+			err = ErrNotAuthorized
+		}
+	}
+
 	return body, err
 }
 
@@ -364,4 +382,18 @@ func (a *Agent) waitForLoadEvent(ctx context.Context) chromedp.Action {
 			return ctx.Err()
 		}
 	})
+}
+
+func (a *Agent) MakeCopy() *Agent {
+	return &Agent{
+		Debug:    a.Debug,
+		LoginUrl: a.LoginUrl,
+		Username: a.Username,
+		Password: a.Password,
+		FDID:     a.FDID,
+	}
+}
+
+func (a *Agent) TransferAuthFrom(a2 *Agent) {
+	a.auth = a2.auth
 }

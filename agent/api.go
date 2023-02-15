@@ -7,6 +7,37 @@ import (
 	"time"
 )
 
+/*
+func (a *Agent) RefreshToken() error {
+	// https://cadview.qvec.org/newworld.cadview/connect/authorize
+	// ?client_id=NewWorld.CadView2
+	// &redirect_uri=https%3A%2F%2Fcadview.qvec.org%2FNewWorld.CadView%2Fsilent-refresh.html
+	// &response_type=id_token%20token
+	// &scope=openid%20cadviewapi.consumer
+	// &state=58ed0b44b15e4aa8a6774c52249e6a2b
+	// &nonce=8977509cfe84419980e2d2c6b30fae4b
+	//&prompt=none
+
+	// TODO: FIXME: IMPLEMENT: XXX
+	// If this isn't implemented, everything goes stale in 15m
+
+	return nil
+}
+*/
+
+func (a *Agent) IsAuthorized() error {
+	// https://cadview.qvec.org/NewWorld.CadView/api/CadView/IsAuthorized
+
+	var out bool
+	url := a.LoginUrl + "/api/CadView/IsAuthorized"
+	body, err := a.authorizedGet(url)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(body, &out)
+	return err
+}
+
 func (a *Agent) Ping() error {
 	// https://cadview.qvec.org/NewWorld.CadView/api/CadView/Ping
 

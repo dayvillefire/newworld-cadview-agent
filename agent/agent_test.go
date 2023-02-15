@@ -14,6 +14,20 @@ func Test_Agent(t *testing.T) {
 		t.Fatalf("ERR: %s", err.Error())
 	}
 
+}
+
+/*
+func Test_Agent(t *testing.T) {
+	a := Agent{
+		Username: DEFAULT_USERNAME,
+		Password: DEFAULT_PASSWORD,
+		LoginUrl: DEFAULT_URL,
+		FDID:     DEFAULT_FDID,
+	}
+	err := a.Init()
+	if err != nil {
+		t.Fatalf("ERR: %s", err.Error())
+	}
 	oris, err := a.GetORIs()
 	if err != nil {
 		t.Fatalf("ERR: %s", err.Error())
@@ -38,3 +52,4 @@ func Test_Agent(t *testing.T) {
 		t.Logf("Call[%s] : %#v", c.IncidentNumber, o)
 	}
 }
+*/

@@ -84,6 +84,15 @@ type OidcObj struct {
 	SessionState string `json:"session_state"`
 	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`
+	Scope        string `json:"scope"`
+	ExpiresAt    int64  `json:"expires_at"`
+	Profile      struct {
+		AuthTime int64  `json:"auth_time"`
+		IDP      string `json:"idp"`
+		SHash    string `json:"s_hash"`
+		Sid      string `json:"sid"`
+		Sub      string `json:"sub"`
+	} `json:"profile"`
 }
 
 type ORIObj struct {
