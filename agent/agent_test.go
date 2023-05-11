@@ -2,7 +2,7 @@ package agent
 
 import "testing"
 
-func Test_Agent(t *testing.T) {
+func Test_Agent_Refresh(t *testing.T) {
 	a := Agent{
 		Username: DEFAULT_USERNAME,
 		Password: DEFAULT_PASSWORD,
