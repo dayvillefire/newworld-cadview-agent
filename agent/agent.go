@@ -235,6 +235,9 @@ func (a *Agent) Init() error {
 func (a *Agent) Run() {
 	go func() {
 		for {
+			if a.Debug {
+				log.Printf("Run(): Ping()")
+			}
 			err := a.Ping()
 			if err != nil {
 				log.Printf("Run(): %s", err.Error())
@@ -261,6 +264,9 @@ func (a *Agent) ActiveCalls() ([]CallObj, error) {
 
 func (a *Agent) ClearedCalls(from, to time.Time, ori string) ([]CallObj, error) {
 	if !a.initialized {
+		if a.Debug {
+			log.Printf("ClearedCalls: !initialized")
+		}
 		err := a.Init()
 		if err != nil {
 			return []CallObj{}, err
@@ -356,6 +362,9 @@ func (a *Agent) authorizedGet(url string) ([]byte, error) {
 }
 
 func (a *Agent) SetAuth(auth OidcObj) {
+	if a.Debug {
+		log.Printf("SetAuth: %#v", auth)
+	}
 	a.auth = auth
 }
 
@@ -395,5 +404,8 @@ func (a *Agent) MakeCopy() *Agent {
 }
 
 func (a *Agent) TransferAuthFrom(a2 *Agent) {
+	if a.Debug {
+		log.Printf("TransferAuthFrom: %s (old) -> %s (new)", a.auth.AccessToken, a2.auth.AccessToken)
+	}
 	a.auth = a2.auth
 }
