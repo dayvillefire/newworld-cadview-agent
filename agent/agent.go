@@ -38,7 +38,7 @@ type Agent struct {
 
 	initialized bool
 	cancelled   bool
-	wg          sync.WaitGroup
+	wg          *sync.WaitGroup
 	l           sync.Mutex
 }
 
@@ -53,6 +53,9 @@ func (a *Agent) Init() error {
 	a.urlMap = map[string]string{}
 	a.bodyMap = map[string][]byte{}
 	a.attr = map[string]string{}
+	if a.wg == nil {
+		a.wg = &sync.WaitGroup{}
+	}
 
 	var _ctx context.Context
 	var _cancel context.CancelFunc
@@ -400,6 +403,7 @@ func (a *Agent) MakeCopy() *Agent {
 		Username: a.Username,
 		Password: a.Password,
 		FDID:     a.FDID,
+		wg:       a.wg,
 	}
 }
 
