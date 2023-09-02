@@ -3,9 +3,9 @@ module github.com/dayvillefire/newworld-cadview-agent/agent
 go 1.20
 
 require (
-	github.com/chromedp/cdproto v0.0.0-20230816033919-17ee49f3eb4f
+	github.com/chromedp/cdproto v0.0.0-20230901104747-bfe71bcbd1c0
 	github.com/chromedp/chromedp v0.9.2
-	gorm.io/gorm v1.25.3
+	gorm.io/gorm v1.25.4
 )
 
 require (
@@ -17,5 +17,5 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	golang.org/x/sys v0.11.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
 )
