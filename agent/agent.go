@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -61,7 +62,7 @@ func (a *Agent) Init() error {
 	var _cancel context.CancelFunc
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.UserDataDir(""),
+		chromedp.UserDataDir(os.TempDir()),
 		chromedp.Flag("enable-privacy-sandbox-ads-apis", true),
 	)
 
