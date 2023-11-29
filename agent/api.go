@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/url"
 	"time"
@@ -91,6 +92,27 @@ func (a *Agent) GetClearedCalls(fromDate time.Time, toDate time.Time, ori string
 
 	var out []CallObj
 	url := a.LoginUrl + "/api/Call/SearchClearedCalls?" + v.Encode()
+	body, err := a.authorizedGet(url)
+	if err != nil {
+		return out, err
+	}
+	if a.Debug {
+		log.Printf("DEBUG: %s", string(body))
+	}
+	err = json.Unmarshal(body, &out)
+	return out, err
+}
+
+// GetCallDetails appropriately populates a CallObj. Results from
+// GetClearedCalls(), etc, do not produce complete CallObj records.
+func (a *Agent) GetCallDetails(cobj CallObj) (CallObj, error) {
+	// https://cadview.qvec.org/NewWorld.CadView/api/Call/GetCall?id=591039
+
+	v := url.Values{}
+	v.Add("id", fmt.Sprintf("%d", cobj.CallID))
+
+	var out CallObj
+	url := a.LoginUrl + "/api/Call/GetCall?" + v.Encode()
 	body, err := a.authorizedGet(url)
 	if err != nil {
 		return out, err

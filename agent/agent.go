@@ -280,14 +280,18 @@ func (a *Agent) ClearedCalls(from, to time.Time, ori string) ([]CallObj, error) 
 }
 
 func (a *Agent) RetrieveCADCall(call CallObj) (CADCall, error) {
+	var err error
 	out := CADCall{}
 	if call.CallID == 0 {
 		return out, fmt.Errorf("no call presented")
 	}
-	out.Call = call
+
+	out.Call, err = a.GetCallDetails(call)
+	if err != nil {
+		return out, err
+	}
 
 	callId := fmt.Sprintf("%d", call.CallID)
-	var err error
 
 	out.Incidents, err = a.GetCallIncidents(callId)
 	if err == nil {
