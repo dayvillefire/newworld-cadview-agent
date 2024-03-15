@@ -412,6 +412,10 @@ func (a *Agent) MakeCopy() *Agent {
 	}
 }
 
+func (a *Agent) WaitGroup() *sync.WaitGroup {
+	return a.wg
+}
+
 func (a *Agent) TransferAuthFrom(a2 *Agent) {
 	if a.Debug {
 		log.Printf("TransferAuthFrom: %s (old) -> %s (new)", a.auth.AccessToken, a2.auth.AccessToken)
