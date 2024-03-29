@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -92,6 +92,9 @@ func (a *Agent) Init() error {
 
 	// Listen to all network events and save content for whatever comes in
 	chromedp.ListenTarget(ctx, func(v interface{}) {
+		if a.cancelled {
+			return
+		}
 		switch ev := v.(type) {
 		case *network.EventRequestWillBeSent:
 			//log.Printf("network.EventRequestWillBeSent")
@@ -122,12 +125,15 @@ func (a *Agent) Init() error {
 			if a.Debug {
 				log.Printf("EventLoadingFinished: %v", ev.RequestID)
 			}
+			if a.cancelled {
+				return
+			}
 			a.wg.Add(1)
 			go func() {
 				c := chromedp.FromContext(ctx)
 				body, err := network.GetResponseBody(ev.RequestID).Do(cdp.WithExecutor(ctx, c.Target))
 				if err != nil {
-					defer a.wg.Done()
+					a.wg.Done()
 					return
 				}
 
@@ -140,7 +146,7 @@ func (a *Agent) Init() error {
 					log.Printf("%s: %s", url, string(body))
 				}
 
-				defer a.wg.Done()
+				a.wg.Done()
 			}()
 		}
 	})
@@ -353,7 +359,7 @@ func (a *Agent) authorizedGet(url string) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if res.Body != nil {
 		defer res.Body.Close()
 	}
@@ -414,6 +420,10 @@ func (a *Agent) MakeCopy() *Agent {
 
 func (a *Agent) WaitGroup() *sync.WaitGroup {
 	return a.wg
+}
+
+func (a *Agent) Cancel() {
+	a.cancelled = true
 }
 
 func (a *Agent) TransferAuthFrom(a2 *Agent) {

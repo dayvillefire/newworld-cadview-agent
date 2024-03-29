@@ -3,9 +3,9 @@ module github.com/dayvillefire/newworld-cadview-agent/agent
 go 1.22
 
 require (
-	github.com/chromedp/cdproto v0.0.0-20240312231614-1e5096e63154
+	github.com/chromedp/cdproto v0.0.0-20240328024531-fe04f09ede24
 	github.com/chromedp/chromedp v0.9.5
-	gorm.io/gorm v1.25.7
+	gorm.io/gorm v1.25.9
 )
 
 require (
