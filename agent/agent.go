@@ -165,7 +165,13 @@ func (a *Agent) Init() error {
 				return nil
 			}),
 
-			chromedp.WaitVisible("//input[@id='Username']"),
+			//chromedp.WaitVisible("//div.signin-text"),
+
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				log.Printf("INFO: Filling out login form")
+				return nil
+			}),
+
 			chromedp.SendKeys("//input[@id='Username']", a.Username),
 			chromedp.SendKeys("//input[@id='passwordField']", a.Password),
 
