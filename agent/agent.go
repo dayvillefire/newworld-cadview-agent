@@ -24,12 +24,25 @@ var (
 	ErrNotAuthorized = errors.New("not authorized")
 )
 
+// Agent is the NewWorld cadview access client. It needs to have Init()
+// successfully called on it before it can perform any actions.
 type Agent struct {
-	Debug    bool
-	BaseUrl  string
+	// Debug turns debug logging on. Be very sure you want to do this, as it
+	// is very verbose.
+	Debug bool
+	// BaseUrl specifies the URL of the cadview instance with a trailing
+	// slash, like "https://cadview.somepsap.org/".
+	BaseUrl string
+	// Username is the login user credential for the cadview instance.
 	Username string
+	// Password is the login password credential for the cadview instance.
 	Password string
-	FDID     string
+	// FDID is the ORI/FDID associated with the login credentials.
+	FDID string
+	// CDP is the URL of a remote devtools instance, usually on port :9222.
+	// If this variable is not empty, a remote rather than local instance
+	// will be utilized.
+	CDP string
 
 	reqMap  map[string]network.RequestID
 	urlMap  map[string]string
@@ -60,15 +73,21 @@ func (a *Agent) Init() error {
 
 	var _ctx context.Context
 	var _cancel context.CancelFunc
+	var cancel context.CancelFunc
 
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.UserDataDir(os.TempDir()),
-		chromedp.Flag("enable-privacy-sandbox-ads-apis", true),
-	)
-
-	_ctx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	defer cancel()
-
+	if a.CDP != "" {
+		log.Printf("INFO: Remote devtools URL %s", a.CDP)
+		_ctx, cancel = chromedp.NewRemoteAllocator(context.Background(), a.CDP)
+		defer cancel()
+	} else {
+		opts := append(
+			chromedp.DefaultExecAllocatorOptions[:],
+			chromedp.UserDataDir(os.TempDir()),
+			chromedp.Flag("enable-privacy-sandbox-ads-apis", true),
+		)
+		_ctx, cancel = chromedp.NewExecAllocator(context.Background(), opts...)
+		defer cancel()
+	}
 	if a.Debug {
 		_ctx, _cancel = chromedp.NewContext(
 			_ctx,
