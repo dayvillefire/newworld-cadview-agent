@@ -26,7 +26,7 @@ var (
 
 type Agent struct {
 	Debug    bool
-	LoginUrl string
+	BaseUrl  string
 	Username string
 	Password string
 	FDID     string
@@ -155,7 +155,7 @@ func (a *Agent) Init() error {
 	// appropriate authentication token from local storage.
 
 	if err := chromedp.Run(ctx,
-		chromedp.Navigate(a.LoginUrl),
+		chromedp.Navigate(a.BaseUrl+"newworld.cadview/account/login"),
 		chromedp.Tasks{
 			// Login sequence
 			//a.waitForLoadEvent(ctx),
@@ -196,9 +196,9 @@ func (a *Agent) Init() error {
 				// it's possible that the js code to add cache entries is executed after this action,
 				// and this action gets nothing.
 				// in this case, it's better to listen to the DOMStorage events.
-				log.Printf("INFO: Security Origin = %s", "https://"+strings.Split(a.LoginUrl, "/")[2])
+				log.Printf("INFO: Security Origin = %s", "https://"+strings.Split(a.BaseUrl, "/")[2])
 				entries, err := domstorage.GetDOMStorageItems(&domstorage.StorageID{
-					StorageKey:     domstorage.SerializedStorageKey("https://" + strings.Split(a.LoginUrl, "/")[2] + "/"),
+					StorageKey:     domstorage.SerializedStorageKey("https://" + strings.Split(a.BaseUrl, "/")[2] + "/"),
 					IsLocalStorage: true,
 				}).Do(ctx)
 
@@ -210,12 +210,17 @@ func (a *Agent) Init() error {
 				//log.Printf("localStorage entries: %#v", entries)
 				for _, entry := range entries {
 					if strings.HasPrefix(entry[0], "oidc.user:") {
-						err = json.Unmarshal([]byte(entry[1]), &(a.auth))
+						var oidc OidcObj
+						err = json.Unmarshal([]byte(entry[1]), &oidc)
 						//log.Printf("JSON user obj : %s", entry[1])
 						if err != nil {
 							log.Printf("ERR: Deserializing OIDC token: %s", err.Error())
 						} else {
+							a.auth = oidc
 							log.Printf("INFO: oidc.expiresat = %d, oidc.auth_time = %d", a.auth.ExpiresAt, a.auth.Profile.AuthTime)
+							if a.Debug {
+								log.Printf("DEBUG: %#v", a.auth)
+							}
 						}
 					}
 				}
@@ -236,7 +241,7 @@ func (a *Agent) Init() error {
 	if a.Debug {
 		log.Printf("attr : %#v", a.attr)
 		log.Printf("urlMap : %#v", a.urlMap)
-		log.Printf("/api/CadView/GetAllUserSettings : %s", string(a.bodyMap[a.LoginUrl+"/api/CadView/GetAllUserSettings"]))
+		log.Printf("/api/CadView/GetAllUserSettings : %s", string(a.bodyMap[a.BaseUrl+"NewWorld.CadView/api/CadView/GetAllUserSettings"]))
 	}
 
 	if a.Debug {
@@ -359,7 +364,9 @@ func (a *Agent) authorizedGet(url string) ([]byte, error) {
 		defer req.Body.Close()
 	}
 
-	//log.Printf("headers : %#v", req.Header)
+	if a.Debug {
+		log.Printf("DEBUG: authorizedGet: Headers : %#v", req.Header)
+	}
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -416,7 +423,7 @@ func (a *Agent) waitForLoadEvent(ctx context.Context) chromedp.Action {
 func (a *Agent) MakeCopy() *Agent {
 	return &Agent{
 		Debug:    a.Debug,
-		LoginUrl: a.LoginUrl,
+		BaseUrl:  a.BaseUrl,
 		Username: a.Username,
 		Password: a.Password,
 		FDID:     a.FDID,

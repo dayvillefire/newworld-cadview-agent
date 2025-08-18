@@ -6,7 +6,7 @@ func Test_Agent_Refresh(t *testing.T) {
 	a := Agent{
 		Username: DEFAULT_USERNAME,
 		Password: DEFAULT_PASSWORD,
-		LoginUrl: DEFAULT_URL,
+		BaseUrl:  DEFAULT_URL,
 		FDID:     DEFAULT_FDID,
 		//Debug:    true,
 	}
@@ -17,20 +17,20 @@ func Test_Agent_Refresh(t *testing.T) {
 
 }
 
-func Test_Agent(t *testing.T) {
+func Test_Agent_API(t *testing.T) {
 	a := Agent{
 		Username: DEFAULT_USERNAME,
 		Password: DEFAULT_PASSWORD,
-		LoginUrl: DEFAULT_URL,
+		BaseUrl:  DEFAULT_URL,
 		FDID:     DEFAULT_FDID,
 	}
 	err := a.Init()
 	if err != nil {
-		t.Fatalf("ERR: %s", err.Error())
+		t.Fatalf("ERR: Init: %s", err.Error())
 	}
 	oris, err := a.GetORIs()
 	if err != nil {
-		t.Fatalf("ERR: %s", err.Error())
+		t.Fatalf("ERR: GetORIs: %s", err.Error())
 	}
 
 	calls, err := a.GetClearedCalls(
@@ -39,7 +39,7 @@ func Test_Agent(t *testing.T) {
 		FDIDToORI(oris, a.FDID),
 	)
 	if err != nil {
-		t.Fatalf("ERR: %s", err.Error())
+		t.Fatalf("ERR: GetClearedCalls: %s", err.Error())
 	}
 	t.Logf("Calls : %#v", calls)
 
