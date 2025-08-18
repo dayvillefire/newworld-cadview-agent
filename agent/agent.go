@@ -16,7 +16,6 @@ import (
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/domstorage"
 	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
 
@@ -334,34 +333,56 @@ func (a *Agent) RetrieveCADCall(call CallObj) (CADCall, error) {
 		if a.Debug {
 			log.Printf(" --> Incidents : %#v", out.Incidents)
 		}
+	} else {
+		log.Printf("ERR: GetCallIncidents: %s", err.Error())
 	}
 
-	out.Units, err = a.GetCallUnits(callId)
-	if err == nil {
-		if a.Debug {
-			log.Printf(" --> Units : %#v", out.Units)
+	{
+		units, err := a.GetCallUnits(callId)
+		if err == nil {
+			if a.Debug {
+				log.Printf(" --> Units : %#v", units)
+			}
+		} else {
+			log.Printf("ERR: GetCallUnits: %s", err.Error())
 		}
+		out.Units = append(out.Units, units...)
 	}
 
-	out.UnitLogs, err = a.GetCallUnitLogs(callId)
-	if err == nil {
-		if a.Debug {
-			log.Printf(" --> Unit Logs : %#v", out.UnitLogs)
+	{
+		unitlogs, err := a.GetCallUnitLogs(callId)
+		if err == nil {
+			if a.Debug {
+				log.Printf(" --> Unit Logs : %#v", unitlogs)
+			}
+		} else {
+			log.Printf("ERR: GetCallUnitLogs: %s", err.Error())
 		}
+		out.UnitLogs = append(out.UnitLogs, unitlogs...)
 	}
 
-	out.Narratives, err = a.GetCallNarratives(callId)
-	if err == nil {
-		if a.Debug {
-			log.Printf(" --> Narratives : %#v", out.Narratives)
+	{
+		narratives, err := a.GetCallNarratives(callId)
+		if err == nil {
+			if a.Debug {
+				log.Printf(" --> Narratives : %#v", narratives)
+			}
+		} else {
+			log.Printf("ERR: GetCallNarratives: %s", err.Error())
 		}
+		out.Narratives = append(out.Narratives, narratives...)
 	}
 
-	out.Logs, err = a.GetCallLogs(callId)
-	if err == nil {
-		if a.Debug {
-			log.Printf(" --> Logs : %#v", out.Logs)
+	{
+		logs, err := a.GetCallLogs(callId)
+		if err == nil {
+			if a.Debug {
+				log.Printf(" --> Logs : %#v", logs)
+			}
+		} else {
+			log.Printf("ERR: GetCallLogs: %s", err.Error())
 		}
+		out.Logs = append(out.Logs, logs...)
 	}
 
 	return out, err
@@ -418,6 +439,7 @@ func (a *Agent) GetAuth() OidcObj {
 	return a.auth
 }
 
+/*
 func (a *Agent) waitForLoadEvent(ctx context.Context) chromedp.Action {
 	ch := make(chan struct{})
 
@@ -438,6 +460,7 @@ func (a *Agent) waitForLoadEvent(ctx context.Context) chromedp.Action {
 		}
 	})
 }
+*/
 
 func (a *Agent) MakeCopy() *Agent {
 	return &Agent{

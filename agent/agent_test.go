@@ -23,6 +23,7 @@ func Test_Agent_API(t *testing.T) {
 		Password: DEFAULT_PASSWORD,
 		BaseUrl:  DEFAULT_URL,
 		FDID:     DEFAULT_FDID,
+		//Debug:    true,
 	}
 	err := a.Init()
 	if err != nil {
@@ -50,5 +51,6 @@ func Test_Agent_API(t *testing.T) {
 			continue
 		}
 		t.Logf("Call[%s] : %#v", c.IncidentNumber, o)
+		break
 	}
 }
