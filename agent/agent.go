@@ -469,6 +469,7 @@ func (a *Agent) MakeCopy() *Agent {
 		Username: a.Username,
 		Password: a.Password,
 		FDID:     a.FDID,
+		CDP:      a.CDP,
 		wg:       a.wg,
 	}
 }
