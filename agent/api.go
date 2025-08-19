@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -134,6 +135,12 @@ func (a *Agent) GetCallIncidents(callID string) ([]IncidentObj, error) {
 		return out, err
 	}
 	err = json.Unmarshal(body, &out)
+	if err == nil {
+		numCallID, _ := strconv.Atoi(callID)
+		for k := range out {
+			out[k].CallID = int64(numCallID)
+		}
+	}
 	return out, err
 }
 
@@ -147,6 +154,12 @@ func (a *Agent) GetCallLogs(callID string) ([]CallLogObj, error) {
 		return out, err
 	}
 	err = json.Unmarshal(body, &out)
+	if err == nil {
+		numCallID, _ := strconv.Atoi(callID)
+		for k := range out {
+			out[k].CallID = int64(numCallID)
+		}
+	}
 	return out, err
 }
 
@@ -160,6 +173,12 @@ func (a *Agent) GetCallNarratives(callID string) ([]NarrativeObj, error) {
 		return out, err
 	}
 	err = json.Unmarshal(body, &out)
+	if err == nil {
+		numCallID, _ := strconv.Atoi(callID)
+		for k := range out {
+			out[k].CallID = int64(numCallID)
+		}
+	}
 	return out, err
 }
 
@@ -173,6 +192,12 @@ func (a *Agent) GetCallUnits(callID string) ([]UnitObj, error) {
 		return out, err
 	}
 	err = json.Unmarshal(body, &out)
+	if err == nil {
+		numCallID, _ := strconv.Atoi(callID)
+		for k := range out {
+			out[k].CallID = int64(numCallID)
+		}
+	}
 	return out, err
 }
 
@@ -186,5 +211,11 @@ func (a *Agent) GetCallUnitLogs(callID string) ([]UnitLogObj, error) {
 		return out, err
 	}
 	err = json.Unmarshal(body, &out)
+	if err == nil {
+		numCallID, _ := strconv.Atoi(callID)
+		for k := range out {
+			out[k].CallID = int64(numCallID)
+		}
+	}
 	return out, err
 }
