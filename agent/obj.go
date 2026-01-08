@@ -16,7 +16,8 @@ type CADCall struct {
 type CallObj struct {
 	gorm.Model         `json:"-"`
 	ArrivedDateTime    string   `json:"arrivedDateTime"`
-	CallID             int64    `json:"callId" gorm:"index;size:64"`
+	//CallID             int64    `json:"callId" gorm:"index;size:64"`
+	CallID             int64    `json:"callId"`
 	CallNumber         int      `json:"callNumber"`
 	CallPriority       string   `json:"callPriority"`
 	CallSource         string   `json:"callSource"` // "911"
