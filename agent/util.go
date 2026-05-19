@@ -1,6 +1,10 @@
 package agent
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"log"
 	"strings"
 	"time"
@@ -29,6 +33,44 @@ func parseDate(dt string) time.Time {
 		return time.Now()
 	}
 	return t
+}
+
+// generateCodeVerifier produces a base64url-encoded random 32-byte value
+// suitable for PKCE code_verifier.
+func generateCodeVerifier() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// generateCodeChallenge computes the S256 PKCE challenge from a verifier:
+// base64url(sha256(ascii(verifier)))
+func generateCodeChallenge(verifier string) string {
+	h := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(h[:])
+}
+
+// generateState produces a random hex string for OIDC state CSRF protection.
+func generateState() (string, error) {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// generateNonce produces a random hex string for OIDC nonce replay protection.
+func generateNonce() (string, error) {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // unwantedTraffic determines if a URL should be stored in memory or not
