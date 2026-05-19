@@ -2,19 +2,25 @@ package agent
 
 import "testing"
 
-func Test_Agent_Refresh(t *testing.T) {
+func Test_Agent_Authenticate(t *testing.T) {
 	a := Agent{
 		Username: DEFAULT_USERNAME,
 		Password: DEFAULT_PASSWORD,
 		BaseUrl:  DEFAULT_URL,
 		FDID:     DEFAULT_FDID,
-		//Debug:    true,
 	}
-	err := a.Init()
+	a.LoadConfigFromEnv()
+
+	err := a.authenticate()
 	if err != nil {
-		t.Fatalf("ERR: %s", err.Error())
+		t.Fatalf("ERR: authenticate: %s", err.Error())
 	}
 
+	if a.auth.AccessToken == "" {
+		t.Fatalf("ERR: no access token after authenticate")
+	}
+	t.Logf("authenticate succeeded, access_token present, refresh_token present=%v",
+		a.auth.RefreshToken != "")
 }
 
 func Test_Agent_API(t *testing.T) {
@@ -23,8 +29,9 @@ func Test_Agent_API(t *testing.T) {
 		Password: DEFAULT_PASSWORD,
 		BaseUrl:  DEFAULT_URL,
 		FDID:     DEFAULT_FDID,
-		//Debug:    true,
 	}
+	a.LoadConfigFromEnv()
+
 	err := a.Init()
 	if err != nil {
 		t.Fatalf("ERR: Init: %s", err.Error())

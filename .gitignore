@@ -1,2 +1,3 @@
 newworld-cadview-agent
 *.sum
+.env
