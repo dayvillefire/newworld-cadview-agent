@@ -390,6 +390,10 @@ func (a *Agent) RetrieveCADCall(call CallObj) (CADCall, error) {
 
 // authorizedGet uses the current authentication mechanism to
 func (a *Agent) authorizedGet(url string) ([]byte, error) {
+	if err := a.ensureValidToken(); err != nil {
+		return []byte{}, fmt.Errorf("ensureValidToken: %w", err)
+	}
+
 	if a.auth.TokenType == "" {
 		return []byte{}, fmt.Errorf("not authenticated")
 	}

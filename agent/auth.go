@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // authenticate performs the full OIDC authorization code + PKCE flow over
@@ -172,6 +173,72 @@ func (a *Agent) authenticate() error {
 			a.auth.ExpiresAt, a.auth.RefreshToken != "")
 	}
 
+	return nil
+}
+
+// refreshToken uses the stored refresh token to obtain a new access token.
+// On success it updates a.auth with the new token values.
+func (a *Agent) refreshToken() error {
+	if a.auth.RefreshToken == "" {
+		return fmt.Errorf("no refresh token available; re-authentication required")
+	}
+
+	form := url.Values{}
+	form.Set("grant_type", "refresh_token")
+	form.Set("refresh_token", a.auth.RefreshToken)
+	form.Set("client_id", "NewWorld.CadView2")
+
+	tokenURL := a.BaseUrl + "newworld.cadview/connect/token"
+	resp, err := http.PostForm(tokenURL, form)
+	if err != nil {
+		return fmt.Errorf("POST refresh_token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read refresh response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("refresh endpoint returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var auth OidcObj
+	if err := json.Unmarshal(body, &auth); err != nil {
+		return fmt.Errorf("unmarshal refresh response: %w", err)
+	}
+
+	if auth.AccessToken == "" {
+		return fmt.Errorf("refresh response missing access_token")
+	}
+
+	if auth.RefreshToken == "" {
+		auth.RefreshToken = a.auth.RefreshToken
+	}
+
+	a.auth = auth
+	return nil
+}
+
+// ensureValidToken checks if the current token is near expiry and refreshes
+// if needed. Call before any authorized API request.
+func (a *Agent) ensureValidToken() error {
+	if a.auth.AccessToken == "" {
+		return a.authenticate()
+	}
+	if a.auth.ExpiresAt > 0 && a.auth.ExpiresAt-time.Now().Unix() < 300 {
+		if a.Debug {
+			log.Printf("DEBUG: token near expiry, refreshing")
+		}
+		err := a.refreshToken()
+		if err != nil {
+			if a.Debug {
+				log.Printf("DEBUG: refresh failed (%s), re-authenticating", err)
+			}
+			return a.authenticate()
+		}
+	}
 	return nil
 }
 
