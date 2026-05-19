@@ -1,22 +1,13 @@
 package agent
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/chromedp/cdproto/cdp"
-	"github.com/chromedp/cdproto/domstorage"
-	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/chromedp"
 )
 
 var (
@@ -38,12 +29,7 @@ type Agent struct {
 	Password string
 	// FDID is the ORI/FDID associated with the login credentials.
 	FDID string
-	// CDP is the URL of a remote devtools instance, usually on port :9222.
-	// If this variable is not empty, a remote rather than local instance
-	// will be utilized.
-	CDP string
-
-	reqMap  map[string]network.RequestID
+	reqMap  map[string]string
 	urlMap  map[string]string
 	bodyMap map[string][]byte
 	attr    map[string]string
@@ -55,14 +41,17 @@ type Agent struct {
 	l           sync.Mutex
 }
 
-// Init logs in and initializes the agent
+// Init logs in and initializes the agent via HTTP OIDC flow (no browser).
 func (a *Agent) Init() error {
 	if a.initialized {
 		return fmt.Errorf("already initialized")
 	}
 
+	// Apply environment variable overrides.
+	a.LoadConfigFromEnv()
+
 	// Initialize all maps to avoid NPE
-	a.reqMap = map[string]network.RequestID{}
+	a.reqMap = map[string]string{}
 	a.urlMap = map[string]string{}
 	a.bodyMap = map[string][]byte{}
 	a.attr = map[string]string{}
@@ -70,204 +59,16 @@ func (a *Agent) Init() error {
 		a.wg = &sync.WaitGroup{}
 	}
 
-	var _ctx context.Context
-	var _cancel context.CancelFunc
-	var cancel context.CancelFunc
-
-	if a.CDP != "" {
-		log.Printf("INFO: Remote devtools URL %s", a.CDP)
-		_ctx, cancel = chromedp.NewRemoteAllocator(context.Background(), a.CDP)
-		defer cancel()
-	} else {
-		opts := append(
-			chromedp.DefaultExecAllocatorOptions[:],
-			chromedp.UserDataDir(os.TempDir()),
-			chromedp.Flag("enable-privacy-sandbox-ads-apis", true),
-		)
-		_ctx, cancel = chromedp.NewExecAllocator(context.Background(), opts...)
-		defer cancel()
-	}
-	if a.Debug {
-		_ctx, _cancel = chromedp.NewContext(
-			_ctx,
-			chromedp.WithDebugf(log.Printf),
-		)
-	} else {
-		_ctx, _cancel = chromedp.NewContext(
-			_ctx,
-		)
-	}
-	defer _cancel()
-
-	ctx, cancel := context.WithTimeout(_ctx, 60*time.Second)
-	defer cancel()
-
-	// ensure that the browser process is started
-	if err := chromedp.Run(ctx); err != nil {
-		log.Printf("ERR: Run(): %s", err.Error())
-		return err
-	}
-
-	// Listen to all network events and save content for whatever comes in
-	chromedp.ListenTarget(ctx, func(v interface{}) {
-		if a.cancelled {
-			return
-		}
-		switch ev := v.(type) {
-		case *network.EventRequestWillBeSent:
-			//log.Printf("network.EventRequestWillBeSent")
-			if unwantedTraffic(ev.Request.URL) {
-				break
-			}
-			if a.Debug {
-				log.Printf("EventRequestWillBeSent: %v: %v", ev.RequestID, ev.Request.URL)
-			}
-			a.l.Lock()
-			a.reqMap[ev.Request.URL] = ev.RequestID
-			a.l.Unlock()
-		case *network.EventResponseReceived:
-			//log.Printf("network.EventResponseReceived")
-			if unwantedTraffic(ev.Response.URL) {
-				break
-			}
-
-			if a.Debug {
-				log.Printf("EventResponseReceived: %v: %v", ev.RequestID, ev.Response.URL)
-				log.Printf("EventResponseReceived: status = %d, headers = %#v", ev.Response.Status, ev.Response.Headers)
-			}
-			a.l.Lock()
-			a.urlMap[ev.RequestID.String()] = ev.Response.URL
-			a.l.Unlock()
-		case *network.EventLoadingFinished:
-			//log.Printf("network.EventLoadingFinished")
-			if a.Debug {
-				log.Printf("EventLoadingFinished: %v", ev.RequestID)
-			}
-			if a.cancelled {
-				return
-			}
-			a.wg.Add(1)
-			go func() {
-				c := chromedp.FromContext(ctx)
-				body, err := network.GetResponseBody(ev.RequestID).Do(cdp.WithExecutor(ctx, c.Target))
-				if err != nil {
-					a.wg.Done()
-					return
-				}
-
-				a.l.Lock()
-				url := a.urlMap[ev.RequestID.String()]
-				a.bodyMap[url] = body
-				a.l.Unlock()
-
-				if a.Debug {
-					log.Printf("%s: %s", url, string(body))
-				}
-
-				a.wg.Done()
-			}()
-		}
-	})
-
-	// Use a Chrome web browser to log in to the interface and obtain the
-	// appropriate authentication token from local storage.
-
-	if err := chromedp.Run(ctx,
-		chromedp.Navigate(a.BaseUrl+"newworld.cadview/account/login"),
-		chromedp.Tasks{
-			// Login sequence
-			//a.waitForLoadEvent(ctx),
-
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				log.Printf("INFO: Attempting to load page")
-				return nil
-			}),
-
-			//chromedp.WaitVisible("//div.signin-text"),
-
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				log.Printf("INFO: Filling out login form")
-				return nil
-			}),
-
-			chromedp.SendKeys("//input[@id='Username']", a.Username),
-			chromedp.SendKeys("//input[@id='passwordField']", a.Password),
-
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				log.Printf("INFO: Attempting to submit form")
-				return nil
-			}),
-
-			chromedp.Submit("//button[@id='loginbtn']"),
-
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				log.Printf("INFO: Attempting to wait for dashboard to be visible")
-				return nil
-			}),
-
-			// Don't continue until the dashboard is visible
-			chromedp.WaitVisible(`//*[contains(., 'Dashboard')]`),
-
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				// if the default profile is not loaded,
-				// it just gets the entries added by the navigation action in the previous step.
-				// it's possible that the js code to add cache entries is executed after this action,
-				// and this action gets nothing.
-				// in this case, it's better to listen to the DOMStorage events.
-				log.Printf("INFO: Security Origin = %s", "https://"+strings.Split(a.BaseUrl, "/")[2])
-				entries, err := domstorage.GetDOMStorageItems(&domstorage.StorageID{
-					StorageKey:     domstorage.SerializedStorageKey("https://" + strings.Split(a.BaseUrl, "/")[2] + "/"),
-					IsLocalStorage: true,
-				}).Do(ctx)
-
-				if err != nil {
-					log.Printf("ERR: domstorage: %s", err.Error())
-					return err
-				}
-
-				//log.Printf("localStorage entries: %#v", entries)
-				for _, entry := range entries {
-					if strings.HasPrefix(entry[0], "oidc.user:") {
-						var oidc OidcObj
-						err = json.Unmarshal([]byte(entry[1]), &oidc)
-						//log.Printf("JSON user obj : %s", entry[1])
-						if err != nil {
-							log.Printf("ERR: Deserializing OIDC token: %s", err.Error())
-						} else {
-							a.auth = oidc
-							log.Printf("INFO: oidc.expiresat = %d, oidc.auth_time = %d", a.auth.ExpiresAt, a.auth.Profile.AuthTime)
-							if a.Debug {
-								log.Printf("DEBUG: %#v", a.auth)
-							}
-						}
-					}
-				}
-
-				return err
-			}),
-		},
-	); err != nil {
-		log.Printf("ERR: Failed to login: %s", err.Error())
+	if err := a.authenticate(); err != nil {
+		log.Printf("ERR: authenticate: %s", err.Error())
 		return err
 	}
 
 	if a.Debug {
-		log.Printf("DEBUG: Wait for all data to be received.")
-	}
-	a.wg.Wait()
-
-	if a.Debug {
-		log.Printf("attr : %#v", a.attr)
-		log.Printf("urlMap : %#v", a.urlMap)
-		log.Printf("/api/CadView/GetAllUserSettings : %s", string(a.bodyMap[a.BaseUrl+"NewWorld.CadView/api/CadView/GetAllUserSettings"]))
-	}
-
-	if a.Debug {
-		log.Printf("auth : %#v", a.auth)
+		log.Printf("DEBUG: auth : %#v", a.auth)
 	}
 
 	a.initialized = true
-
 	return nil
 }
 
@@ -443,29 +244,6 @@ func (a *Agent) GetAuth() OidcObj {
 	return a.auth
 }
 
-/*
-func (a *Agent) waitForLoadEvent(ctx context.Context) chromedp.Action {
-	ch := make(chan struct{})
-
-	lctx, cancel := context.WithCancel(ctx)
-	go chromedp.ListenTarget(lctx, func(ev interface{}) {
-		if _, ok := ev.(*page.EventLoadEventFired); ok {
-			cancel()
-			close(ch)
-		}
-	})
-
-	return chromedp.ActionFunc(func(ctx context.Context) error {
-		select {
-		case <-ch:
-			return nil
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	})
-}
-*/
-
 func (a *Agent) MakeCopy() *Agent {
 	return &Agent{
 		Debug:    a.Debug,
@@ -473,7 +251,6 @@ func (a *Agent) MakeCopy() *Agent {
 		Username: a.Username,
 		Password: a.Password,
 		FDID:     a.FDID,
-		CDP:      a.CDP,
 		wg:       a.wg,
 	}
 }
