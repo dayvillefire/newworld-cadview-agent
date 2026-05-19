@@ -4,8 +4,8 @@ import "gorm.io/gorm"
 
 type CADCall struct {
 	gorm.Model `json:"-"`
-	ID         int64          `json:"id" gorm:"primaryKey"`
-	Call       CallObj        `json:"call" db:"-" gorm:"foreignKey:CallID"`
+	ID         int64          `json:"id"`
+	Call       CallObj        `json:"call" db:"-" gorm:"primaryKey;autoIncrement:false;foreignKey:CallID"`
 	Logs       []CallLogObj   `json:"logs" db:"-" gorm:"foreignKey:CallID"`
 	Incidents  []IncidentObj  `json:"incidents" db:"-" gorm:"foreignKey:CallID"`
 	Narratives []NarrativeObj `json:"narratives" db:"-" gorm:"foreignKey:CallID"`
@@ -14,8 +14,8 @@ type CADCall struct {
 }
 
 type CallObj struct {
-	gorm.Model         `json:"-"`
-	ArrivedDateTime    string   `json:"arrivedDateTime"`
+	gorm.Model      `json:"-"`
+	ArrivedDateTime string `json:"arrivedDateTime"`
 	//CallID             int64    `json:"callId" gorm:"index;size:64"`
 	CallID             int64    `json:"callId"`
 	CallNumber         int      `json:"callNumber"`
@@ -85,8 +85,10 @@ type OidcObj struct {
 	SessionState string `json:"session_state"`
 	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`
-	Scope        string `json:"scope"`
+	RefreshToken string `json:"refresh_token"`
 	ExpiresAt    int64  `json:"expires_at"`
+	ExpiresIn    int64  `json:"expires_in"`
+	Scope        string `json:"scope"`
 	Profile      struct {
 		AuthTime int64  `json:"auth_time"`
 		IDP      string `json:"idp"`
