@@ -166,6 +166,11 @@ func (a *Agent) authenticate() error {
 		return fmt.Errorf("token response missing access_token: %s", string(tokenBody))
 	}
 
+	// Compute ExpiresAt from ExpiresIn if server doesn't provide it.
+	if auth.ExpiresAt == 0 && auth.ExpiresIn > 0 {
+		auth.ExpiresAt = time.Now().Unix() + auth.ExpiresIn
+	}
+
 	a.auth = auth
 
 	if a.Debug {
@@ -216,6 +221,9 @@ func (a *Agent) refreshToken() error {
 	if auth.RefreshToken == "" {
 		auth.RefreshToken = a.auth.RefreshToken
 	}
+	if auth.ExpiresAt == 0 && auth.ExpiresIn > 0 {
+		auth.ExpiresAt = time.Now().Unix() + auth.ExpiresIn
+	}
 
 	a.auth = auth
 	return nil
@@ -224,10 +232,18 @@ func (a *Agent) refreshToken() error {
 // ensureValidToken checks if the current token is near expiry and refreshes
 // if needed. Call before any authorized API request.
 func (a *Agent) ensureValidToken() error {
+	a.l.Lock()
+	defer a.l.Unlock()
+
 	if a.auth.AccessToken == "" {
 		return a.authenticate()
 	}
-	if a.auth.ExpiresAt > 0 && a.auth.ExpiresAt-time.Now().Unix() < 300 {
+	// Compute expiresAt from ExpiresIn if not set directly.
+	expiresAt := a.auth.ExpiresAt
+	if expiresAt == 0 && a.auth.ExpiresIn > 0 {
+		expiresAt = time.Now().Unix() + a.auth.ExpiresIn
+	}
+	if expiresAt > 0 && expiresAt-time.Now().Unix() <= 120 {
 		if a.Debug {
 			log.Printf("DEBUG: token near expiry, refreshing")
 		}

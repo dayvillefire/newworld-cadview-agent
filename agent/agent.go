@@ -73,6 +73,7 @@ func (a *Agent) Init() error {
 }
 
 func (a *Agent) Run() {
+	// Keepalive ping every 15 seconds.
 	go func() {
 		for {
 			if a.Debug {
@@ -87,6 +88,25 @@ func (a *Agent) Run() {
 				if a.cancelled {
 					return
 				}
+			}
+		}
+	}()
+
+	// Proactive token refresh every 8 minutes.
+	// ensureValidToken handles its own locking.
+	go func() {
+		for {
+			for i := 0; i < 120; i++ {
+				time.Sleep(time.Second)
+				if a.cancelled {
+					return
+				}
+			}
+			if a.Debug {
+				log.Printf("Run(): proactive token refresh")
+			}
+			if err := a.ensureValidToken(); err != nil {
+				log.Printf("Run(): token refresh failed: %s", err.Error())
 			}
 		}
 	}()
