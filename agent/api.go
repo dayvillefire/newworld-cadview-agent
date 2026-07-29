@@ -107,6 +107,22 @@ func (a *Agent) GetCallDetails(cobj CallObj) (CallObj, error) {
 	return out, err
 }
 
+// GetCallDetailsFull returns a CallObj with complete fields including fireOri.
+// Hits .../api/Call/GetCallDetails which returns more data than GetCall.
+func (a *Agent) GetCallDetailsFull(cobj CallObj) (CallObj, error) {
+	v := url.Values{}
+	v.Add("id", fmt.Sprintf("%d", cobj.CallID))
+
+	var out CallObj
+	url := a.BaseUrl + "NewWorld.CadView/api/Call/GetCallDetails?" + v.Encode()
+	body, err := a.authorizedGet(url)
+	if err != nil {
+		return out, err
+	}
+	err = json.Unmarshal(body, &out)
+	return out, err
+}
+
 func (a *Agent) GetCallIncidents(callID string) ([]IncidentObj, error) {
 	// https://cadview.qvec.org/NewWorld.CadView/api/Call/GetCallIncidents?id=573613
 

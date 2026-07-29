@@ -38,6 +38,8 @@ type CallObj struct {
 	PrimaryUnit        string   `json:"primaryUnit"`         // "STA70"
 	Quadrant           string   `json:"quadrant"`            // "POMFRET B"
 	AllowedORI         []string `json:"allowedOri" gorm:"-"` // ["04040-561","04090"]
+	CallOri            string   `json:"callOri"`             // "04040; 04040-561; 04042"
+	FireOri            string   `json:"fireOri"`             // "-160" — internal ORI ID for the fire agency
 	// "foregroundB":68,"foregroundG":68,"foregroundR":68
 	// "district":null,"emsCallType":null,"emsCallTypeId":null
 	// policeCallType":null,"policeCallTypeId":null,
